@@ -79,7 +79,7 @@ spec:
             }
         }
 
-        stage('Ensure ECR Repos') {
+        stage('Ensure ECR Repos & Clean Disk') {
             steps {
                 container('build-tools') {
                     script {
@@ -91,6 +91,7 @@ spec:
                             aws ecr create-repository --repository-name ${repoName} --region ${AWS_REGION}
                             """
                         }
+                        sh 'docker system prune -f'
                     }
                 }
             }
