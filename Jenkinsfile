@@ -22,6 +22,9 @@ spec:
     image: docker:dind
     securityContext:
       privileged: true
+    env:
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
     volumeMounts:
     - name: dind-storage
       mountPath: /var/lib/docker
@@ -37,7 +40,6 @@ spec:
         AWS_REGION      = 'ap-south-1'
         CLUSTER_NAME    = 'kubeoptima-test'
         REGISTRY        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/kubeoptima"
-        DOCKER_BUILDKIT = '1'
     }
 
     stages {
@@ -81,11 +83,7 @@ spec:
                     steps {
                         container('build-tools') {
                             sh """
-                            docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
-                              --cache-from ${REGISTRY}/api-gateway:latest \
-                              -t ${REGISTRY}/api-gateway:latest \
-                              -t ${REGISTRY}/api-gateway:${BUILD_NUMBER} \
-                              apps/api-gateway
+                            docker build -t ${REGISTRY}/api-gateway:latest -t ${REGISTRY}/api-gateway:${BUILD_NUMBER} apps/api-gateway
                             docker push ${REGISTRY}/api-gateway:latest
                             docker push ${REGISTRY}/api-gateway:${BUILD_NUMBER}
                             """
@@ -96,11 +94,7 @@ spec:
                     steps {
                         container('build-tools') {
                             sh """
-                            docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
-                              --cache-from ${REGISTRY}/dashboard:latest \
-                              -t ${REGISTRY}/dashboard:latest \
-                              -t ${REGISTRY}/dashboard:${BUILD_NUMBER} \
-                              apps/dashboard
+                            docker build -t ${REGISTRY}/dashboard:latest -t ${REGISTRY}/dashboard:${BUILD_NUMBER} apps/dashboard
                             docker push ${REGISTRY}/dashboard:latest
                             docker push ${REGISTRY}/dashboard:${BUILD_NUMBER}
                             """
@@ -111,11 +105,7 @@ spec:
                     steps {
                         container('build-tools') {
                             sh """
-                            docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
-                              --cache-from ${REGISTRY}/ai-service:latest \
-                              -t ${REGISTRY}/ai-service:latest \
-                              -t ${REGISTRY}/ai-service:${BUILD_NUMBER} \
-                              apps/ai-service
+                            docker build -t ${REGISTRY}/ai-service:latest -t ${REGISTRY}/ai-service:${BUILD_NUMBER} apps/ai-service
                             docker push ${REGISTRY}/ai-service:latest
                             docker push ${REGISTRY}/ai-service:${BUILD_NUMBER}
                             """
@@ -126,11 +116,7 @@ spec:
                     steps {
                         container('build-tools') {
                             sh """
-                            docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
-                              --cache-from ${REGISTRY}/k8s-operator:latest \
-                              -t ${REGISTRY}/k8s-operator:latest \
-                              -t ${REGISTRY}/k8s-operator:${BUILD_NUMBER} \
-                              apps/k8s-operator
+                            docker build -t ${REGISTRY}/k8s-operator:latest -t ${REGISTRY}/k8s-operator:${BUILD_NUMBER} apps/k8s-operator
                             docker push ${REGISTRY}/k8s-operator:latest
                             docker push ${REGISTRY}/k8s-operator:${BUILD_NUMBER}
                             """
