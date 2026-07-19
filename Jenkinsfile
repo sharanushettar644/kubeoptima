@@ -8,6 +8,7 @@ metadata:
   labels:
     app: kubeoptima-build-agent
 spec:
+  serviceAccountName: jenkins
   containers:
   - name: build-tools
     image: dtzar/helm-kubectl:latest
