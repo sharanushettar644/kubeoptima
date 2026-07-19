@@ -15,6 +15,10 @@ spec:
     command:
     - cat
     tty: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
     env:
     - name: DOCKER_HOST
       value: tcp://localhost:2375
@@ -22,12 +26,21 @@ spec:
     image: docker:dind
     securityContext:
       privileged: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
     env:
     - name: DOCKER_TLS_CERTDIR
       value: ""
     volumeMounts:
     - name: dind-storage
       mountPath: /var/lib/docker
+  - name: jnlp
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
   volumes:
   - name: dind-storage
     emptyDir: {}
