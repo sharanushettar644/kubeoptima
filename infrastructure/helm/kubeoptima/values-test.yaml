@@ -1,0 +1,157 @@
+# KubeOptima Test Helm Values
+# Optimized for a single-node t3.medium EKS cluster (2 vCPU, 4GB RAM)
+
+global:
+  image:
+    registry: ghcr.io/your-org/kubeoptima
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+
+# ─────────────────────────────────────────────
+# API Gateway
+# ─────────────────────────────────────────────
+apiGateway:
+  enabled: true
+  replicaCount: 1 # Reduced from 3
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+
+# ─────────────────────────────────────────────
+# Dashboard
+# ─────────────────────────────────────────────
+dashboard:
+  enabled: true
+  replicaCount: 1 # Reduced from 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ─────────────────────────────────────────────
+# AI Service
+# ─────────────────────────────────────────────
+aiService:
+  enabled: true
+  replicaCount: 1 # Reduced from 2
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi # Reduced from 4Gi
+    limits:
+      cpu: 500m
+      memory: 512Mi # Reduced from 8Gi
+  persistence:
+    enabled: false # Disabled for lightweight testing
+  gpu:
+    enabled: false
+
+# ─────────────────────────────────────────────
+# Operator
+# ─────────────────────────────────────────────
+operator:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ─────────────────────────────────────────────
+# Third-party dependencies (Downscaled for test)
+# ─────────────────────────────────────────────
+postgresql:
+  enabled: true
+  primary:
+    persistence:
+      enabled: false # Use emptyDir for ephemeral testing to avoid PVC binding delay
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  readReplicas:
+    replicaCount: 0 # Reduced from 2
+
+clickhouse:
+  enabled: true
+  replicaCount: 1 # Reduced from 3
+  persistence:
+    enabled: false # Ephemeral storage for testing
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+redis:
+  enabled: true
+  architecture: standalone # Standalone mode for testing
+  master:
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+nats:
+  enabled: true
+  cluster:
+    enabled: false # No clustering
+  jetstream:
+    enabled: true
+    fileStore:
+      enabled: false # Use memory store for testing speed
+    memStore:
+      enabled: true
+      size: 128Mi
+
+# ─────────────────────────────────────────────
+# Monitoring (Disabled or downscaled)
+# ─────────────────────────────────────────────
+monitoring:
+  prometheus:
+    enabled: true
+    retention: 2d # Minimal retention
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  grafana:
+    enabled: true
+    adminPassword: "admin"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+  serviceMonitor:
+    enabled: false
+
+# ─────────────────────────────────────────────
+# Security Settings
+# ─────────────────────────────────────────────
+security:
+  networkPolicy:
+    enabled: false # Disabled to simplify local networking troubleshooting

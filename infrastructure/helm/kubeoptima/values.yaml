@@ -1,0 +1,266 @@
+name: kubeoptima
+description: Enterprise AI-Powered Kubernetes Cost Optimization Platform
+
+# Default values — override with -f values-aws.yaml etc.
+global:
+  image:
+    registry: ghcr.io/your-org/kubeoptima
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  priorityClassName: ""
+
+# ─────────────────────────────────────────────
+# API Gateway
+# ─────────────────────────────────────────────
+apiGateway:
+  enabled: true
+  replicaCount: 3
+  image:
+    name: api-gateway
+  service:
+    type: ClusterIP
+    port: 9090
+    grpcPort: 9091
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: api.kubeoptima.io
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: kubeoptima-api-tls
+        hosts:
+          - api.kubeoptima.io
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+  env:
+    JWT_SECRET: ""  # Set via secret
+    OIDC_ISSUER: ""
+    ALLOWED_ORIGINS: "https://app.kubeoptima.io"
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+# ─────────────────────────────────────────────
+# Dashboard
+# ─────────────────────────────────────────────
+dashboard:
+  enabled: true
+  replicaCount: 2
+  image:
+    name: dashboard
+  service:
+    type: ClusterIP
+    port: 3000
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: app.kubeoptima.io
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: kubeoptima-dashboard-tls
+        hosts:
+          - app.kubeoptima.io
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# ─────────────────────────────────────────────
+# AI Service
+# ─────────────────────────────────────────────
+aiService:
+  enabled: true
+  replicaCount: 2
+  image:
+    name: ai-service
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 4Gi
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+  # GPU support
+  gpu:
+    enabled: false
+    resourceKey: nvidia.com/gpu
+    count: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+  persistence:
+    enabled: true
+    storageClass: gp3
+    size: 20Gi
+    mountPath: /models
+
+# ─────────────────────────────────────────────
+# Kubernetes Operator
+# ─────────────────────────────────────────────
+operator:
+  enabled: true
+  replicaCount: 1
+  image:
+    name: k8s-operator
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # ClusterRole permissions
+  rbac:
+    create: true
+  # Leader election for HA
+  leaderElection:
+    enabled: true
+    namespace: kubeoptima-system
+
+# ─────────────────────────────────────────────
+# PostgreSQL (sub-chart)
+# ─────────────────────────────────────────────
+postgresql:
+  enabled: true
+  auth:
+    database: kubeoptima
+    username: kubeoptima
+    existingSecret: kubeoptima-postgres-secret
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: gp3
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  readReplicas:
+    replicaCount: 2
+
+# ─────────────────────────────────────────────
+# ClickHouse (time-series metrics)
+# ─────────────────────────────────────────────
+clickhouse:
+  enabled: true
+  replicaCount: 3
+  persistence:
+    enabled: true
+    size: 200Gi
+    storageClass: gp3
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 8Gi
+    limits:
+      cpu: 8000m
+      memory: 32Gi
+
+# ─────────────────────────────────────────────
+# Redis
+# ─────────────────────────────────────────────
+redis:
+  enabled: true
+  architecture: replication
+  auth:
+    enabled: true
+    existingSecret: kubeoptima-redis-secret
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+  replica:
+    replicaCount: 2
+
+# ─────────────────────────────────────────────
+# NATS
+# ─────────────────────────────────────────────
+nats:
+  enabled: true
+  cluster:
+    enabled: true
+    replicas: 3
+  jetstream:
+    enabled: true
+    fileStore:
+      enabled: true
+      size: 10Gi
+
+# ─────────────────────────────────────────────
+# Monitoring
+# ─────────────────────────────────────────────
+monitoring:
+  prometheus:
+    enabled: true
+    retention: 30d
+  grafana:
+    enabled: true
+    adminPassword: ""  # Set via secret
+    dashboards:
+      enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+# ─────────────────────────────────────────────
+# Security
+# ─────────────────────────────────────────────
+security:
+  networkPolicy:
+    enabled: true
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 2000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+  # External Secrets Operator integration
+  externalSecrets:
+    enabled: false
+    secretStore: aws-secretsmanager
+
+# ─────────────────────────────────────────────
+# Multi-tenancy
+# ─────────────────────────────────────────────
+multiTenancy:
+  enabled: false
+  isolationMode: namespace  # namespace | cluster
+  defaultQuotas:
+    maxClusters: 10
+    maxNodes: 500

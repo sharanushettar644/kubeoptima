@@ -1,0 +1,209 @@
+version: "3.9"
+
+# KubeOptima AI Platform — Local Development Stack
+# Usage: docker compose up -d
+
+services:
+  # ─────────────────────────────────────────────
+  # Frontend
+  # ─────────────────────────────────────────────
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:9090
+      - NEXT_PUBLIC_WS_URL=ws://localhost:9090
+    depends_on:
+      - api-gateway
+    networks:
+      - kubeoptima
+
+  # ─────────────────────────────────────────────
+  # Go API Gateway
+  # ─────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "9090:9090"
+      - "9091:9091"  # gRPC
+    environment:
+      - PORT=9090
+      - GRPC_PORT=9091
+      - DATABASE_URL=postgres://kubeoptima:secret@postgres:5432/kubeoptima
+      - REDIS_URL=redis://redis:6379
+      - CLICKHOUSE_URL=clickhouse://clickhouse:9000
+      - AI_SERVICE_URL=http://ai-service:8000
+      - ALLOWED_ORIGINS=http://localhost:3000
+      - JWT_SECRET=dev-secret-change-in-prod
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - kubeoptima
+
+  # ─────────────────────────────────────────────
+  # Python AI Service
+  # ─────────────────────────────────────────────
+  ai-service:
+    build:
+      context: ./apps/ai-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - WORKERS=2
+      - CLICKHOUSE_URL=clickhouse://clickhouse:9000
+      - REDIS_URL=redis://redis:6379
+      - MODEL_PATH=/models
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    volumes:
+      - model-data:/models
+    depends_on:
+      - clickhouse
+      - redis
+    networks:
+      - kubeoptima
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+
+  # ─────────────────────────────────────────────
+  # Databases
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kubeoptima
+      POSTGRES_USER: kubeoptima
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./infrastructure/db/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kubeoptima"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kubeoptima
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.5
+    environment:
+      CLICKHOUSE_DB: kubeoptima
+      CLICKHOUSE_USER: kubeoptima
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      CLICKHOUSE_PASSWORD: secret
+    volumes:
+      - ch-data:/var/lib/clickhouse
+      - ./infrastructure/db/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - kubeoptima
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - kubeoptima
+
+  # ─────────────────────────────────────────────
+  # Observability
+  # ─────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prom-data:/prometheus
+    ports:
+      - "9092:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    networks:
+      - kubeoptima
+
+  grafana:
+    image: grafana/grafana:10.4.4
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - kubeoptima
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.102.1
+    volumes:
+      - ./infrastructure/monitoring/otel-config.yaml:/etc/otel/config.yaml
+    command: ["--config", "/etc/otel/config.yaml"]
+    ports:
+      - "4317:4317"   # gRPC
+      - "4318:4318"   # HTTP
+    networks:
+      - kubeoptima
+
+  # ─────────────────────────────────────────────
+  # Message bus
+  # ─────────────────────────────────────────────
+  nats:
+    image: nats:2.10-alpine
+    command: ["--jetstream", "--store_dir=/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"  # monitoring
+    volumes:
+      - nats-data:/data
+    networks:
+      - kubeoptima
+
+# ─────────────────────────────────────────────
+networks:
+  kubeoptima:
+    driver: bridge
+
+volumes:
+  pg-data:
+  ch-data:
+  redis-data:
+  prom-data:
+  grafana-data:
+  nats-data:
+  model-data:

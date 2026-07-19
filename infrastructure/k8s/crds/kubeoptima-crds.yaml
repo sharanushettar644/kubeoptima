@@ -1,0 +1,327 @@
+---
+# OptimizationPolicy CRD — defines optimization behavior for a cluster/namespace scope
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: optimizationpolicies.kubeoptima.ai
+  annotations:
+    kubeoptima.ai/version: "v1.0.0"
+spec:
+  group: kubeoptima.ai
+  names:
+    kind: OptimizationPolicy
+    listKind: OptimizationPolicyList
+    plural: optimizationpolicies
+    singular: optimizationpolicy
+    shortNames: ["opt", "policy"]
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Mode
+          type: string
+          jsonPath: .spec.mode
+        - name: Score
+          type: integer
+          jsonPath: .status.optimizationScore
+        - name: Savings
+          type: string
+          jsonPath: .status.estimatedMonthlySavings
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          required: ["spec"]
+          properties:
+            spec:
+              type: object
+              required: ["mode"]
+              properties:
+                mode:
+                  type: string
+                  enum: ["autonomous", "approval", "observe"]
+                  description: |
+                    autonomous: Apply recommendations automatically after validation
+                    approval: Require human approval for each recommendation
+                    observe: Only collect metrics and generate recommendations, no action
+                targets:
+                  type: object
+                  properties:
+                    namespaces:
+                      type: array
+                      items: { type: string }
+                    labelSelectors:
+                      type: array
+                      items: { type: string }
+                    excludeNamespaces:
+                      type: array
+                      items: { type: string }
+                rightsizing:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                    safetyMargin:
+                      type: number
+                      minimum: 0.05
+                      maximum: 0.5
+                      default: 0.15
+                      description: Headroom % above P99 utilization
+                    maxScaleDown:
+                      type: number
+                      minimum: 0.1
+                      maximum: 0.9
+                      default: 0.5
+                      description: Maximum fraction of resources to reduce in one step
+                    inPlaceResizing:
+                      type: boolean
+                      default: true
+                      description: Use K8s in-place pod resizing (v1.33+) when available
+                    minConfidence:
+                      type: number
+                      minimum: 0.5
+                      maximum: 1.0
+                      default: 0.8
+                    historyDays:
+                      type: integer
+                      minimum: 3
+                      maximum: 90
+                      default: 30
+                spotMigration:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    interruptionThreshold:
+                      type: number
+                      minimum: 0.0
+                      maximum: 1.0
+                      default: 0.2
+                      description: Max acceptable interruption probability
+                    allowedInstanceFamilies:
+                      type: array
+                      items: { type: string }
+                    fallbackNodeCount:
+                      type: integer
+                      default: 3
+                autoscaling:
+                  type: object
+                  properties:
+                    predictive:
+                      type: boolean
+                      default: false
+                    lookAheadMinutes:
+                      type: integer
+                      default: 15
+                    scaleDownCooldown:
+                      type: string
+                      default: "5m"
+                    scaleUpCooldown:
+                      type: string
+                      default: "1m"
+                binPacking:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    minNodeUtilization:
+                      type: number
+                      default: 0.5
+                      description: Drain nodes below this utilization threshold
+                rollback:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                    triggerThreshold:
+                      type: number
+                      default: 0.1
+                      description: Metric degradation fraction to trigger rollback
+                    timeoutSeconds:
+                      type: integer
+                      default: 600
+                notifications:
+                  type: object
+                  properties:
+                    slack:
+                      type: string
+                    pagerduty:
+                      type: string
+                    webhookURL:
+                      type: string
+            status:
+              type: object
+              properties:
+                optimizationScore:
+                  type: integer
+                estimatedMonthlySavings:
+                  type: string
+                lastReconciled:
+                  type: string
+                appliedRecommendations:
+                  type: integer
+                pendingRecommendations:
+                  type: integer
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type: { type: string }
+                      status: { type: string }
+                      reason: { type: string }
+                      message: { type: string }
+                      lastTransitionTime: { type: string }
+---
+# NodePool CRD — declares desired node pool configuration
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: nodepools.kubeoptima.ai
+spec:
+  group: kubeoptima.ai
+  names:
+    kind: NodePool
+    listKind: NodePoolList
+    plural: nodepools
+    singular: nodepool
+    shortNames: ["np"]
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Type
+          type: string
+          jsonPath: .spec.type
+        - name: Nodes
+          type: integer
+          jsonPath: .status.currentNodeCount
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: ["on-demand", "spot", "reserved", "mixed"]
+                instanceTypes:
+                  type: array
+                  items: { type: string }
+                minNodes:
+                  type: integer
+                  minimum: 0
+                maxNodes:
+                  type: integer
+                desiredNodes:
+                  type: integer
+                spotConfig:
+                  type: object
+                  properties:
+                    allocationStrategy:
+                      type: string
+                      enum: ["price-capacity-optimized", "lowest-price", "diversified"]
+                    maxInterruptionProbability:
+                      type: number
+                taints:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key: { type: string }
+                      value: { type: string }
+                      effect: { type: string }
+                labels:
+                  type: object
+                  additionalProperties: { type: string }
+            status:
+              type: object
+              properties:
+                currentNodeCount: { type: integer }
+                readyNodeCount: { type: integer }
+                phase: { type: string }
+                lastScaleEvent: { type: string }
+---
+# MigrationJob CRD — tracks a live pod/container migration
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: migrationjobs.kubeoptima.ai
+spec:
+  group: kubeoptima.ai
+  names:
+    kind: MigrationJob
+    listKind: MigrationJobList
+    plural: migrationjobs
+    singular: migrationjob
+    shortNames: ["mj"]
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Pod
+          type: string
+          jsonPath: .spec.podName
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Progress
+          type: integer
+          jsonPath: .status.progressPercent
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["podName", "targetNode"]
+              properties:
+                podName: { type: string }
+                podNamespace: { type: string }
+                sourceNode: { type: string }
+                targetNode: { type: string }
+                method:
+                  type: string
+                  enum: ["criu", "rolling", "drain"]
+                  default: "criu"
+                reason: { type: string }
+                preserveTCPSessions:
+                  type: boolean
+                  default: true
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: ["Pending", "PreDump", "Checkpoint", "Transfer", "Restore", "Validating", "Completed", "Failed"]
+                progressPercent: { type: integer }
+                startTime: { type: string }
+                completionTime: { type: string }
+                preservedTCPSessions: { type: integer }
+                errorMessage: { type: string }
+                checkpointPath: { type: string }
