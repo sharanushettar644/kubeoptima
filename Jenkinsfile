@@ -47,7 +47,9 @@ spec:
     effect: "NoSchedule"
   volumes:
   - name: dind-storage
-    emptyDir: {}
+    hostPath:
+      path: /tmp/jenkins-dind-cache
+      type: DirectoryOrCreate
 '''
         }
     }
