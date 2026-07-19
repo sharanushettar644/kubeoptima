@@ -15,15 +15,19 @@ spec:
     command:
     - cat
     tty: true
+    env:
+    - name: DOCKER_HOST
+      value: tcp://localhost:2375
+  - name: dind
+    image: docker:dind
     securityContext:
-      runAsUser: 0
+      privileged: true
     volumeMounts:
-    - mountPath: /var/run/docker.sock
-      name: docker-sock
+    - name: dind-storage
+      mountPath: /var/lib/docker
   volumes:
-  - name: docker-sock
-    hostPath:
-      path: /var/run/docker.sock
+  - name: dind-storage
+    emptyDir: {}
 '''
         }
     }
