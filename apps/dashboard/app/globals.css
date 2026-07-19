@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+@theme {
+  /* Theme mapping to dynamic custom properties */
+  --color-background-custom: var(--background-custom);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-primary: var(--primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-secondary: var(--secondary);
+  --color-success-emerald: var(--success-emerald);
+  --color-warning-amber: var(--warning-amber);
+  --color-error: var(--error);
+  --color-error-container: var(--error-container);
+  
+  /* Legacy/Dashboard theme mapping fallback */
+  --color-bg-app: var(--bg-app);
+  --color-card: var(--card);
+  --color-border-custom: var(--border-custom);
+  --color-text-main: var(--text-main);
+  --color-text-sub: var(--text-sub);
+  
+  --shadow-glow-accent: 0 0 20px rgba(0, 105, 253, 0.15);
+  --shadow-card: var(--shadow-card-var);
+}
+
+:root {
+  /* Luminous Logic Theme (Light Mode Default) */
+  --background-custom: #f7f9fb;
+  --surface: #f7f9fb;
+  --surface-elevated: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f4f6;
+  --surface-container: #eceef0;
+  --surface-container-high: #e6e8ea;
+  --surface-container-highest: #e0e3e5;
+  --on-surface: #191c1e;
+  --on-surface-variant: #424654;
+  --outline: #737786;
+  --outline-variant: #c3c6d6;
+  --primary: #0043a6;
+  --primary-container: #0559d6;
+  --on-primary-container: #d3dcff;
+  --secondary: #565e74;
+  --success-emerald: #10B981;
+  --warning-amber: #F59E0B;
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+
+  --font-title: 'Geist', sans-serif;
+  --font-body: 'Geist', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Legacy App Fallbacks */
+  --bg-app: #f7f9fb;
+  --card: #ffffff;
+  --border-custom: #eceef0;
+  --text-main: #191c1e;
+  --text-sub: #424654;
+  --shadow-card-var: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+.dark {
+  /* Autonomous Cloud Logic Theme (Dark Mode) */
+  --background-custom: #0E0F13;
+  --surface: #121317;
+  --surface-elevated: #1A1C23;
+  --surface-container-lowest: #0d0e12;
+  --surface-container-low: #1a1b20;
+  --surface-container: #1f1f24;
+  --surface-container-high: #292a2e;
+  --surface-container-highest: #343439;
+  --on-surface: #e3e2e7;
+  --on-surface-variant: #c2c6d8;
+  --outline: #8c90a1;
+  --outline-variant: #424655;
+  --primary: #b2c5ff;
+  --primary-container: #0669fd;
+  --on-primary-container: #fcfaff;
+  --secondary: #b5c9db;
+  --success-emerald: #10B981;
+  --warning-amber: #F59E0B;
+  --error: #ffb4ab;
+  --error-container: #93000a;
+
+  --font-title: 'Hanken Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Legacy App Fallbacks */
+  --bg-app: #0E0F13;
+  --card: #1A1C23;
+  --border-custom: rgba(82, 88, 102, 0.2);
+  --text-main: #e3e2e7;
+  --text-sub: #c2c6d8;
+  --shadow-card-var: none;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-body);
+  background-color: var(--background-custom);
+  color: var(--on-surface);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Utilities */
+.glass {
+  background: var(--card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-custom);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.3);
+  border-radius: 2px;
+}
+
+/* Custom recharts styling */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-custom) !important;
+  border-radius: 8px !important;
+  color: var(--text-main) !important;
+}
+
