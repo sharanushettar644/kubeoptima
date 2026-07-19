@@ -36,10 +36,10 @@ spec:
     }
 
     stages {
-        stage('Install AWS CLI') {
+        stage('Install AWS CLI & Docker Client') {
             steps {
                 container('build-tools') {
-                    sh 'apk add --no-cache aws-cli'
+                    sh 'apk add --no-cache aws-cli docker-cli'
                 }
             }
         }
