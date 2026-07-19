@@ -41,6 +41,10 @@ spec:
       requests:
         cpu: 50m
         memory: 64Mi
+  tolerations:
+  - key: "kubeoptima.ai/spot"
+    operator: "Exists"
+    effect: "NoSchedule"
   volumes:
   - name: dind-storage
     emptyDir: {}
